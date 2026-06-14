@@ -94,17 +94,40 @@ const clickPrompt = document.getElementById('clickPrompt');
 const btnGhost = document.getElementById('btnGhost');
 const fpsCounter = document.getElementById('fpsCounter');
 const progressText = document.getElementById('progressText');
+const progressDetail = document.getElementById('progressDetail');
+const progressRing = document.querySelector('.progress-ring');
 const progressCircle = document.querySelector('.progress-ring__circle');
 
 const CIRCUMFERENCE = 2 * Math.PI * 50; // r=50 -> ~314
 
 function setProgress(pct) {
   pct = Math.max(0, Math.min(100, pct));
+  if (progressRing) progressRing.classList.remove('is-indeterminate');
   if (progressText) progressText.textContent = `${Math.round(pct)}%`;
   if (progressCircle) {
     progressCircle.style.strokeDashoffset =
       CIRCUMFERENCE - (pct / 100) * CIRCUMFERENCE;
   }
+}
+
+function formatMegabytes(bytes) {
+  return `${(bytes / (1024 * 1024)).toFixed(bytes >= 100 * 1024 * 1024 ? 0 : 1)} MB`;
+}
+
+function setLoadingStatus(message, detail = '') {
+  if (progressText) progressText.textContent = message;
+  if (progressDetail) progressDetail.textContent = detail;
+}
+
+function showReadyScreen() {
+  setProgress(100);
+  setLoadingStatus('100%', 'Model ready');
+  setTimeout(() => {
+    if (loadingOverlay) loadingOverlay.style.display = 'none';
+    if (clickPrompt) clickPrompt.style.display = 'flex';
+    if (btnGhost) btnGhost.style.display = 'flex';
+    if (fpsCounter) fpsCounter.style.display = 'block';
+  }, 400);
 }
 
 // Ghost-mode button - 3-second wall pass-through with debounce
@@ -133,36 +156,10 @@ window.addEventListener('keydown', e => {
   }
 });
 
-const manager = new THREE.LoadingManager(
-  // onLoad
-  () => {
-    setProgress(100);
-    // Brief pause so the 100% renders, then swap overlays
-    setTimeout(() => {
-      if (loadingOverlay) loadingOverlay.style.display = 'none';
-      if (clickPrompt) clickPrompt.style.display = 'flex';
-      if (btnGhost) btnGhost.style.display = 'flex';
-      if (fpsCounter) fpsCounter.style.display = 'block';
-    }, 400);
-  },
-  // onProgress
-  (url, loaded, total) => {
-    setProgress(Math.round((loaded / total) * 100));
-  },
-  // onError
-  url => {
-    console.error('Error loading asset:', url);
-  }
-);
-
-// Safety: hide loading screen after 30 s regardless
-setTimeout(() => {
-  if (loadingOverlay && loadingOverlay.style.display !== 'none') {
-    loadingOverlay.style.display = 'none';
-    if (clickPrompt) clickPrompt.style.display = 'flex';
-    if (btnGhost) btnGhost.style.display = 'flex';
-  }
-}, 30000);
+const manager = new THREE.LoadingManager();
+manager.onError = url => {
+  console.error('Error loading asset:', url);
+};
 
 // ------------------------------------------------------------
 //  Mobile controls init
@@ -212,13 +209,31 @@ loader.load(
     }
 
     // Register scene meshes for floor raycasting
+    setLoadingStatus('Preparing model...', 'Building walkthrough collision data');
     fpController.setScene(gltf.scene);
+    showReadyScreen();
   },
-  undefined,
+  event => {
+    if (event.lengthComputable && event.total > 0) {
+      const pct = (event.loaded / event.total) * 100;
+      setProgress(pct);
+      if (pct >= 100) {
+        setLoadingStatus('Preparing model...', 'Download complete');
+      } else {
+        setLoadingStatus(
+          `${Math.round(pct)}%`,
+          `Downloading model: ${formatMegabytes(event.loaded)} / ${formatMegabytes(event.total)}`
+        );
+      }
+    } else {
+      if (progressRing) progressRing.classList.add('is-indeterminate');
+      setLoadingStatus('Downloading model...', `${formatMegabytes(event.loaded)} downloaded`);
+    }
+  },
   err => {
     console.error('Failed to load model:', err);
-    // Still hide loading so the user sees an empty scene rather than hanging
-    if (loadingOverlay) loadingOverlay.style.display = 'none';
+    if (progressRing) progressRing.classList.remove('is-indeterminate');
+    setLoadingStatus('Model failed to load', 'Please check your connection and refresh the page');
   }
 );
 
