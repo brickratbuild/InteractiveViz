@@ -181,14 +181,30 @@ if (isMobile) {
 //  GLTF / GLB loader
 // ------------------------------------------------------------
 const loader = new GLTFLoader(manager);
+const modelLoadStartedAt = performance.now();
+let modelDownloadCompletedAt = null;
+
+function logLoadTiming(label, startTime, endTime = performance.now()) {
+  console.info(`[BrickRat load] ${label}: ${Math.round(endTime - startTime)} ms`);
+}
 
 loader.load(
   MODEL_URL,
   gltf => {
+    const modelParsedAt = performance.now();
+    if (modelDownloadCompletedAt !== null) {
+      logLoadTiming('network download', modelLoadStartedAt, modelDownloadCompletedAt);
+      logLoadTiming('GLB parse and texture upload before callback', modelDownloadCompletedAt, modelParsedAt);
+    } else {
+      logLoadTiming('download plus parse before callback', modelLoadStartedAt, modelParsedAt);
+    }
+
+    const sceneSetupStartedAt = performance.now();
     scene.add(gltf.scene);
 
     // --- Smart start position ---
     const startPos = findStartPosition(gltf.scene, EYE_HEIGHT);
+    logLoadTiming('start-position scan', sceneSetupStartedAt);
     camera.position.copy(startPos);
 
     // Tell the controller where the floor is from the very first frame
@@ -209,8 +225,11 @@ loader.load(
     }
 
     // Register scene meshes for floor raycasting
+    const collisionStartedAt = performance.now();
     setLoadingStatus('Preparing model...', 'Building walkthrough collision data');
     fpController.setScene(gltf.scene);
+    logLoadTiming('collision BVH setup', collisionStartedAt);
+    logLoadTiming('total time to ready', modelLoadStartedAt);
     showReadyScreen();
   },
   event => {
@@ -218,6 +237,9 @@ loader.load(
       const pct = (event.loaded / event.total) * 100;
       setProgress(pct);
       if (pct >= 100) {
+        if (modelDownloadCompletedAt === null) {
+          modelDownloadCompletedAt = performance.now();
+        }
         setLoadingStatus('Preparing model...', 'Download complete');
       } else {
         setLoadingStatus(
