@@ -1,0 +1,12 @@
+node_modules/
+dist/
+scripts/
+assets2/
+*.md
+package.json
+package-lock.json
+.git/
+.gitignore
+.gitattributes
+wrangler.jsonc
+.assetsignore

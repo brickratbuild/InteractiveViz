@@ -11,13 +11,29 @@ const isMobile = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
 
 // ============================================================
 //  MODEL URL
-//  Local dev  -> put your GLB inside the "assets/" folder and
-//               keep the path below as-is.
-//  Production -> replace with the direct URL of your hosted GLB
-//               (GitHub Release asset, Cloudflare R2, etc.)
+//  Each customer gets their own link: https://brickrat.com/<slug>
+//  The slug is looked up in customers.json (repo root) to find which
+//  GLB to load. See customers.json to add a new customer.
 // ============================================================
-// const MODEL_URL = 'https://pub-4622c204bf054ed7ae6895e757c1af7f.r2.dev/model.glb';
-const MODEL_URL = 'https://pub-4622c204bf054ed7ae6895e757c1af7f.r2.dev/baked.glb';
+async function resolveModelUrl() {
+  const slug = window.location.pathname.replace(/^\/+|\/+$/g, '');
+  if (!slug) {
+    throw new Error('missing-slug');
+  }
+
+  const res = await fetch('/customers.json', { cache: 'no-store' });
+  if (!res.ok) {
+    throw new Error('registry-unavailable');
+  }
+
+  const customers = await res.json();
+  const entry = customers[slug];
+  if (!entry || !entry.modelUrl) {
+    throw new Error('unknown-slug');
+  }
+
+  return entry.modelUrl;
+}
 
 // ============================================================
 //  Eye-height constant (metres above floor)
@@ -188,6 +204,19 @@ function logLoadTiming(label, startTime, endTime = performance.now()) {
   console.info(`[BrickRat load] ${label}: ${Math.round(endTime - startTime)} ms`);
 }
 
+function showLinkError() {
+  if (progressRing) progressRing.classList.remove('is-indeterminate');
+  setLoadingStatus('Link not found', 'This walkthrough link is invalid. Please check the URL you were given.');
+}
+
+resolveModelUrl()
+  .then(startModelLoad)
+  .catch(error => {
+    console.error('Failed to resolve model for this link:', error);
+    showLinkError();
+  });
+
+function startModelLoad(MODEL_URL) {
 loader.load(
   MODEL_URL,
   gltf => {
@@ -258,6 +287,7 @@ loader.load(
     setLoadingStatus('Model failed to load', 'Please check your connection and refresh the page');
   }
 );
+}
 
 // ------------------------------------------------------------
 //  Window resize
