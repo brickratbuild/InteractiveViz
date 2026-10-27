@@ -74,7 +74,7 @@ Two config files make this work and must be pushed before the first deploy:
   publish `node_modules` (1000+ files) to the public site.
 
 ```bash
-git add index.html main.js customers.json _redirects wrangler.jsonc .assetsignore js/ lib/ images/ styles/ assets/icons/ assets/thumbnails/ .nojekyll manifest.json sw.js README.md HOSTING_GUIDE.md
+git add index.html main.js customers.json wrangler.jsonc .assetsignore js/ lib/ images/ styles/ assets/icons/ assets/thumbnails/ .nojekyll manifest.json sw.js README.md HOSTING_GUIDE.md
 git commit -m "Update walkthrough"
 git push origin main
 git push interactiveviz main

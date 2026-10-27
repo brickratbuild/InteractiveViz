@@ -20,7 +20,6 @@ Open `http://localhost:5173/<slug>`, e.g. `http://localhost:5173/demo-sample`.
 - `index.html`: app shell, overlays, and PWA hooks
 - `main.js`: scene setup, slug -> model resolution, and runtime flow
 - `customers.json`: maps each customer's link slug to their model URL
-- `_redirects`: Cloudflare Pages SPA routing rule
 - `js/controls/`: first-person desktop and mobile controls
 - `lib/`: vendored Three.js runtime files
 - `assets/`, `images/`, `models/`: project assets
