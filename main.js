@@ -11,7 +11,7 @@ const isMobile = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
 
 // ============================================================
 //  MODEL URL
-//  Each customer gets their own link: https://brickrat.com/<slug>
+//  Each customer gets their own link: https://view.brickrat.com/<slug>
 //  The slug is looked up in customers.json (repo root) to find which
 //  GLB to load. See customers.json to add a new customer.
 // ============================================================

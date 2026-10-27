@@ -1,7 +1,7 @@
 # Brickrat Main Example
 
 Static Three.js walkthrough app for exploring a hosted GLB model in the
-browser. Each customer gets their own link, `https://brickrat.com/<slug>`,
+browser. Each customer gets their own link, `https://view.brickrat.com/<slug>`,
 which loads that customer's model from Cloudflare R2.
 
 ## Restore local setup
