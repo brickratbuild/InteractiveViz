@@ -1,5 +1,6 @@
 import * as THREE from './lib/three/three.module.js';
 import { GLTFLoader } from './lib/three/loaders/GLTFLoader.js';
+import { DRACOLoader } from './lib/three/loaders/DRACOLoader.js';
 import { FirstPersonController } from './js/controls/FirstPersonControls.js';
 import { MobileControls } from './js/controls/MobileControls.js';
 import { findStartPosition } from './js/utils/findStartPosition.js';
@@ -197,6 +198,10 @@ if (isMobile) {
 //  GLTF / GLB loader
 // ------------------------------------------------------------
 const loader = new GLTFLoader(manager);
+// Some customer GLBs are Draco-compressed; decoder files live in lib/three/libs/draco/gltf/
+const dracoLoader = new DRACOLoader();
+dracoLoader.setDecoderPath('/lib/three/libs/draco/gltf/');
+loader.setDRACOLoader(dracoLoader);
 const modelLoadStartedAt = performance.now();
 let modelDownloadCompletedAt = null;
 
