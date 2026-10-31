@@ -2,5 +2,9 @@
   "demo-sample": {
     "name": "Sample Customer",
     "modelUrl": "https://pub-4622c204bf054ed7ae6895e757c1af7f.r2.dev/baked.glb"
+  },
+  "mansion3": {
+    "name": "Mansion 3",
+    "modelUrl": "https://pub-4622c204bf054ed7ae6895e757c1af7f.r2.dev/mansion3.glb"
   }
 }
