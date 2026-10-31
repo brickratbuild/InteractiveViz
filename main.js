@@ -92,7 +92,7 @@ const camera = new THREE.PerspectiveCamera(
 //  Renderer
 // ------------------------------------------------------------
 const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 // Physically-correct lighting mode for better material appearance
 renderer.useLegacyLights = false;
