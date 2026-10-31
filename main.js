@@ -1,6 +1,7 @@
 import * as THREE from './lib/three/three.module.js';
 import { GLTFLoader } from './lib/three/loaders/GLTFLoader.js';
 import { DRACOLoader } from './lib/three/loaders/DRACOLoader.js';
+import { KTX2Loader } from './lib/three/loaders/KTX2Loader.js';
 import { FirstPersonController } from './js/controls/FirstPersonControls.js';
 import { MobileControls } from './js/controls/MobileControls.js';
 import { findStartPosition } from './js/utils/findStartPosition.js';
@@ -202,6 +203,11 @@ const loader = new GLTFLoader(manager);
 const dracoLoader = new DRACOLoader();
 dracoLoader.setDecoderPath('/lib/three/libs/draco/gltf/');
 loader.setDRACOLoader(dracoLoader);
+// Some customer GLBs use KTX2 (Basis) textures; transcoder lives in lib/three/libs/basis/
+const ktx2Loader = new KTX2Loader();
+ktx2Loader.setTranscoderPath('/lib/three/libs/basis/');
+ktx2Loader.detectSupport(renderer);
+loader.setKTX2Loader(ktx2Loader);
 const modelLoadStartedAt = performance.now();
 let modelDownloadCompletedAt = null;
 
