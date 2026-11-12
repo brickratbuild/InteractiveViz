@@ -31,10 +31,17 @@ or company, so other customers' links can't be easily guessed.
      "existing-slug": { "...": "..." },
      "a8f3k2": {
        "name": "Jane's Residence",
-       "modelUrl": "https://pub-xxxxxxxx.r2.dev/jane-residence.glb"
+       "modelUrl": "https://pub-xxxxxxxx.r2.dev/jane-residence.glb",
+       "startPosition": { "x": 0, "y": 0, "z": 0, "yaw": 0, "pitch": 0 }
      }
    }
    ```
+
+   Replace those example coordinates with a practical point inside the model.
+   `y` is floor/feet height in metres; the viewer adds eye height. `yaw` and
+   `pitch` are degrees. On a local walkthrough, use
+   `JSON.stringify(brickratDev.getStartPosition(), null, 2)` in DevTools to copy
+   the current location/direction. See [RENDERING.md](RENDERING.md) for details.
 
 3. Commit and push to `main` (see "Deploying" below). Cloudflare rebuilds
    and deploys automatically, usually within a minute.

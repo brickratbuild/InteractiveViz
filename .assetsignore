@@ -1,6 +1,8 @@
 node_modules/
 dist/
 scripts/
+validation/
+vite.config.mjs
 assets2/
 *.md
 package.json

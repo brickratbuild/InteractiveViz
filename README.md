@@ -21,6 +21,9 @@ Open `http://localhost:5173/<slug>`, e.g. `http://localhost:5173/demo-sample`.
 - `main.js`: scene setup, slug -> model resolution, and runtime flow
 - `customers.json`: maps each customer's link slug to their model URL
 - `js/controls/`: first-person desktop and mobile controls
+- `js/rendering/`: shared baked-material/HDR pipeline and centralized mobile/desktop presets
+- `js/models/customerConfig.js`: backward-compatible customer variant selection
+- `js/utils/modelStart.js`: configured starting position/direction, with a legacy automatic fallback
 - `lib/`: vendored Three.js runtime files
 - `assets/`, `images/`, `models/`: project assets
 
@@ -28,6 +31,17 @@ Open `http://localhost:5173/<slug>`, e.g. `http://localhost:5173/demo-sample`.
 
 Add or edit an entry in `customers.json` - see `HOSTING_GUIDE.md` for the
 full steps, including the link-naming convention and deploy process.
+
+See [RENDERING.md](RENDERING.md) for baked asset metadata, desktop/mobile variants,
+local Shareefa validation, quality overrides, and measured results. Existing
+customer URLs and models are unchanged. No assets are published by these tools.
+
+Set each model's `startPosition` in `customers.json` to choose its initial
+location and direction. Coordinates are metres at **feet height**; `yaw` and
+`pitch` are degrees. See the developer starting-position section in
+[RENDERING.md](RENDERING.md) for the schema and a console helper that copies the
+current walkthrough position. Shareefa's local test is available at
+`http://127.0.0.1:5173/shareefa` and uses the reference viewer's living-room start.
 
 ## Push changes
 

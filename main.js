@@ -4,12 +4,27 @@ import { DRACOLoader } from './lib/three/loaders/DRACOLoader.js';
 import { KTX2Loader } from './lib/three/loaders/KTX2Loader.js';
 import { FirstPersonController } from './js/controls/FirstPersonControls.js';
 import { MobileControls } from './js/controls/MobileControls.js';
-import { findStartPosition } from './js/utils/findStartPosition.js';
+import { getStartView } from './js/utils/modelStart.js';
+import { selectQuality, isLocalDevelopment } from './js/rendering/quality.js';
+import { resolveCustomerModel } from './js/models/customerConfig.js';
+import { readBakedContract } from './js/rendering/bakedContract.js';
+import { disposeModel } from './js/rendering/disposeModel.js';
 
 // ============================================================
 //  Device detection
 // ============================================================
 const isMobile = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+const development = isLocalDevelopment();
+const params = new URLSearchParams(window.location.search);
+const quality = selectQuality({ coarse: matchMedia('(pointer: coarse)').matches,
+  smallScreen: Math.min(screen.width, screen.height) <= 768, memory: navigator.deviceMemory,
+  development, override: params.get('quality') });
+let renderPipeline = null;
+let modelRoot = null;
+let modelReady = false;
+let runtimeFailed = false;
+let animationFrame = null;
+const loadTimings = {};
 
 // ============================================================
 //  MODEL URL
@@ -17,24 +32,15 @@ const isMobile = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
 //  The slug is looked up in customers.json (repo root) to find which
 //  GLB to load. See customers.json to add a new customer.
 // ============================================================
-async function resolveModelUrl() {
-  const slug = window.location.pathname.replace(/^\/+|\/+$/g, '');
-  if (!slug) {
-    throw new Error('missing-slug');
+async function resolveModelConfig() {
+  // Local validation only. Vite serves these two exact files read-only.
+  if (development && params.get('devModel') === 'shareefa') {
+    const variant = ['mobile', 'desktop'].includes(params.get('devVariant')) ? params.get('devVariant') : quality.name;
+    const config = await resolveCustomerModel({ pathname: '/shareefa', quality: variant, development });
+    if (params.get('devProfile') === 'legacy') config.rendering.profile = 'legacy';
+    return config;
   }
-
-  const res = await fetch('/customers.json', { cache: 'no-store' });
-  if (!res.ok) {
-    throw new Error('registry-unavailable');
-  }
-
-  const customers = await res.json();
-  const entry = customers[slug];
-  if (!entry || !entry.modelUrl) {
-    throw new Error('unknown-slug');
-  }
-
-  return entry.modelUrl;
+  return resolveCustomerModel({ pathname: window.location.pathname, quality: quality.name, development });
 }
 
 // ============================================================
@@ -91,12 +97,23 @@ const camera = new THREE.PerspectiveCamera(
 // ------------------------------------------------------------
 //  Renderer
 // ------------------------------------------------------------
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2));
+function createRenderer() {
+  try { return new THREE.WebGLRenderer({ antialias: true }); }
+  catch (error) {
+    document.querySelector('.progress-ring')?.classList.remove('is-indeterminate');
+    document.getElementById('progressText').textContent = 'Rendering unavailable';
+    document.getElementById('progressDetail').textContent = 'Please try a browser or device with WebGL 2 support.';
+    throw error;
+  }
+}
+const renderer = createRenderer();
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, quality.pixelRatio));
 renderer.setSize(window.innerWidth, window.innerHeight);
 // Physically-correct lighting mode for better material appearance
-renderer.useLegacyLights = false;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.debug.onShaderError = (gl, program, vertex, fragment) => {
+  throw new Error(`Shader compilation failed (Three r${THREE.REVISION}): ${gl.getProgramInfoLog(program)}\n${gl.getShaderInfoLog(vertex)}\n${gl.getShaderInfoLog(fragment)}`);
+};
 document.body.appendChild(renderer.domElement);
 
 // ------------------------------------------------------------
@@ -115,6 +132,11 @@ const progressText = document.getElementById('progressText');
 const progressDetail = document.getElementById('progressDetail');
 const progressRing = document.querySelector('.progress-ring');
 const progressCircle = document.querySelector('.progress-ring__circle');
+
+// A late pointer-unlock event must not cover a loading/rendering error.
+document.addEventListener('pointerlockchange', () => {
+  if (!modelReady && clickPrompt) clickPrompt.style.display = 'none';
+});
 
 const CIRCUMFERENCE = 2 * Math.PI * 50; // r=50 -> ~314
 
@@ -141,6 +163,7 @@ function showReadyScreen() {
   setProgress(100);
   setLoadingStatus('100%', 'Model ready');
   setTimeout(() => {
+    if (runtimeFailed) return;
     if (loadingOverlay) loadingOverlay.style.display = 'none';
     if (clickPrompt) clickPrompt.style.display = 'flex';
     if (btnGhost) btnGhost.style.display = 'flex';
@@ -212,6 +235,7 @@ const modelLoadStartedAt = performance.now();
 let modelDownloadCompletedAt = null;
 
 function logLoadTiming(label, startTime, endTime = performance.now()) {
+  loadTimings[label] = endTime - startTime;
   console.info(`[BrickRat load] ${label}: ${Math.round(endTime - startTime)} ms`);
 }
 
@@ -220,57 +244,92 @@ function showLinkError() {
   setLoadingStatus('Link not found', 'This walkthrough link is invalid. Please check the URL you were given.');
 }
 
-resolveModelUrl()
+resolveModelConfig()
   .then(startModelLoad)
   .catch(error => {
     console.error('Failed to resolve model for this link:', error);
     showLinkError();
   });
 
-function startModelLoad(MODEL_URL) {
+function showModelError(error) {
+  console.error('Failed to prepare/render model:', error);
+  runtimeFailed = true;
+  modelReady = false;
+  fpController.isLocked = false;
+  document.exitPointerLock?.();
+  if (clickPrompt) clickPrompt.style.display = 'none';
+  if (btnGhost) btnGhost.style.display = 'none';
+  if (loadingOverlay) loadingOverlay.style.display = 'flex';
+  if (progressRing) progressRing.classList.remove('is-indeterminate');
+  const unsupported = /unsupported|HDR framebuffer/.test(error.message);
+  setLoadingStatus(unsupported ? 'Rendering unavailable' : 'Model failed to load', unsupported
+    ? 'This walkthrough needs HDR support. Please try another browser or device.'
+    : 'Please check your connection and refresh the page');
+  renderPipeline?.dispose(); renderPipeline = null;
+  if (modelRoot) { scene.remove(modelRoot); disposeModel(modelRoot); modelRoot = null; }
+  dracoLoader.dispose(); ktx2Loader.dispose();
+}
+
+function startModelLoad(modelConfig) {
 loader.load(
-  MODEL_URL,
-  gltf => {
+  modelConfig.url,
+  async gltf => {
+    modelRoot = gltf.scene;
+    try {
     const modelParsedAt = performance.now();
     if (modelDownloadCompletedAt !== null) {
       logLoadTiming('network download', modelLoadStartedAt, modelDownloadCompletedAt);
-      logLoadTiming('GLB parse and texture upload before callback', modelDownloadCompletedAt, modelParsedAt);
+      logLoadTiming('GLB parse/decode before callback (GPU upload is later)', modelDownloadCompletedAt, modelParsedAt);
     } else {
       logLoadTiming('download plus parse before callback', modelLoadStartedAt, modelParsedAt);
     }
 
     const sceneSetupStartedAt = performance.now();
     scene.add(gltf.scene);
+    // Explicit starts skip the bounding-box scan that used to update transforms.
+    // Collision spheres still need current world matrices before setScene().
+    gltf.scene.updateMatrixWorld(true);
 
-    // --- Smart start position ---
-    const startPos = findStartPosition(gltf.scene, EYE_HEIGHT);
-    logLoadTiming('start-position scan', sceneSetupStartedAt);
-    camera.position.copy(startPos);
+    setLoadingStatus('Preparing model...', 'Preparing materials');
+    const contract = readBakedContract(gltf.scene, modelConfig.rendering);
+    if (contract) {
+      const { BakedRenderer } = await import('./js/rendering/BakedRenderer.js');
+      renderPipeline = new BakedRenderer(renderer, scene, gltf.scene, contract, quality);
+      console.info('[BrickRat rendering]', renderPipeline.diagnostics);
+    }
+    logLoadTiming('material and HDR setup', sceneSetupStartedAt);
+
+    // --- Developer-configured start (automatic search only for older records) ---
+    const spawnStartedAt = performance.now();
+    const start = getStartView(gltf.scene, modelConfig.startPosition, EYE_HEIGHT);
+    logLoadTiming(modelConfig.startPosition ? 'configured starting position' : 'start-position scan', spawnStartedAt);
+    camera.position.copy(start.position);
 
     // Tell the controller where the floor is from the very first frame
-    fpController.setGroundY(startPos.y - EYE_HEIGHT);
-
-    // --- Initial look direction ---
-    // Face toward the centre of the model's bounding box (horizontal only)
-    const box = new THREE.Box3().setFromObject(gltf.scene);
-    const centre = box.getCenter(new THREE.Vector3());
-    const toCenter = new THREE.Vector3(
-      centre.x - startPos.x,
-      0,
-      centre.z - startPos.z
-    );
-    if (toCenter.lengthSq() > 0.001) {
-      // yaw = angle in XZ plane to face the model interior
-      fpController.setYaw(Math.atan2(toCenter.x, toCenter.z));
-    }
+    fpController.setGroundY(start.position.y - EYE_HEIGHT);
+    fpController.setYaw(start.yaw);
+    fpController.pitch = start.pitch;
+    fpController.update(0); // apply the configured direction to the first rendered frame
 
     // Register scene meshes for floor raycasting
-    const collisionStartedAt = performance.now();
     setLoadingStatus('Preparing model...', 'Building walkthrough collision data');
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const collisionStartedAt = performance.now();
     fpController.setScene(gltf.scene);
     logLoadTiming('collision BVH setup', collisionStartedAt);
+    setLoadingStatus('Preparing model...', 'Preparing first frame');
+    const gpuStartedAt = performance.now();
+    try {
+      renderer.setRenderTarget(renderPipeline?.target || null);
+      await renderer.compileAsync(scene, camera);
+    } finally { renderer.setRenderTarget(null); }
+    renderFrame(); // includes transmission, HDR, bloom and the display shader
+    logLoadTiming('shader compile and first frame submission', gpuStartedAt);
+    modelReady = true;
+    dracoLoader.dispose(); ktx2Loader.dispose();
     logLoadTiming('total time to ready', modelLoadStartedAt);
     showReadyScreen();
+    } catch (error) { showModelError(error); }
   },
   event => {
     if (event.lengthComputable && event.total > 0) {
@@ -292,11 +351,7 @@ loader.load(
       setLoadingStatus('Downloading model...', `${formatMegabytes(event.loaded)} downloaded`);
     }
   },
-  err => {
-    console.error('Failed to load model:', err);
-    if (progressRing) progressRing.classList.remove('is-indeterminate');
-    setLoadingStatus('Model failed to load', 'Please check your connection and refresh the page');
-  }
+  showModelError
 );
 }
 
@@ -312,7 +367,9 @@ function resizeViewport() {
 
   camera.aspect = width / height;
   camera.updateProjectionMatrix();
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, quality.pixelRatio));
   renderer.setSize(width, height);
+  try { renderPipeline?.resize(); } catch (error) { showModelError(error); }
 }
 
 function scheduleViewportResize() {
@@ -334,7 +391,7 @@ let fpsFrames = 0;
 let fpsElapsed = 0;
 
 function animate() {
-  requestAnimationFrame(animate);
+  animationFrame = requestAnimationFrame(animate);
 
   const dt = Math.min(clock.getDelta(), 0.1); // cap at 100 ms to avoid teleporting on tab-switch
 
@@ -347,9 +404,34 @@ function animate() {
     fpsElapsed = 0;
   }
 
-  fpController.update(dt);
-
-  renderer.render(scene, camera);
+  if (modelReady && !runtimeFailed) {
+    try {
+      fpController.update(dt);
+      renderFrame();
+    } catch (error) { showModelError(error); }
+  }
 }
+
+function renderFrame() {
+  if (renderPipeline) renderPipeline.render(camera);
+  else renderer.render(scene, camera);
+}
+
+if (development) {
+  import('./js/rendering/devTools.js').then(({ installDevTools }) => installDevTools({
+    THREE, renderer, scene, camera, controller: fpController, renderFrame,
+    status: () => ({ ready: modelReady, failed: runtimeFailed, quality,
+      diagnostics: renderPipeline?.diagnostics || { profile: 'legacy' }, loadTimings }),
+  }));
+}
+
+window.addEventListener('pagehide', event => {
+  if (event.persisted) return; // a bfcache page will resume using its GPU resources
+  cancelAnimationFrame(animationFrame);
+  if (ghostTimer) clearTimeout(ghostTimer);
+  renderPipeline?.dispose();
+  if (modelRoot) disposeModel(modelRoot);
+  dracoLoader.dispose(); ktx2Loader.dispose(); renderer.dispose();
+});
 
 animate();

@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "main.js",
   "scripts": {
+    "test": "node scripts/rendering.test.mjs",
     "dev": "vite",
     "build": "vite build && node scripts/copy-sw-to-dist.mjs",
     "preview": "vite preview"

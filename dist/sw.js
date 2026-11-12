@@ -1,4 +1,4 @@
-const CACHE_NAME = 'brickrat-shell-v2';
+const CACHE_NAME = 'brickrat-shell-v4';
 const OLD_CACHES = ['brickrat-v1', 'brickrat-model-v1'];
 
 self.addEventListener('install', () => self.skipWaiting());
@@ -23,6 +23,10 @@ self.addEventListener('fetch', event => {
   // Let the browser and Cloudflare handle large cross-origin assets directly.
   // The GLB should be cached with R2/Cloudflare response headers, not Cache Storage.
   if (!request.url.startsWith(self.registration.scope)) return;
+
+  // Model URLs and developer-selected starting positions must reflect the
+  // latest registry. Let its existing fetch(cache: 'no-store') reach the network.
+  if (new URL(request.url).pathname === '/customers.json') return;
 
   event.respondWith(staleWhileRevalidate(request));
 });

@@ -1,0 +1,22 @@
+{
+  "name": "BrickRat Building Walkthrough",
+  "short_name": "BrickRat",
+  "description": "Interactive 3D building walkthrough",
+  "start_url": ".",
+  "display": "standalone",
+  "orientation": "landscape",
+  "theme_color": "#B8CEDD",
+  "background_color": "#ffffff",
+  "icons": [
+    {
+      "src": "images/logo_round.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "images/logo_round.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
