@@ -255,7 +255,12 @@ GPU-timer-query measurement. No second maintained viewer was introduced.
 `npm run build` also copies the current customer registry, decoder files,
 manifest and icons into dist so preview has the stable runtime URLs. Root-static
 Cloudflare config is unchanged. The service-worker shell cache is versioned to
-v4; `/customers.json` bypasses the shell cache. Nothing is deployed or uploaded by these commands.
+v5; same-origin files check the network before falling back to the shell cache,
+and `/customers.json` is never cached. A replacement worker reloads an already
+controlled page once; a first installation does not reload. Browsers still running
+an older cached HTML page may need one hard refresh when migrating to this version.
+Network failures without a usable cache return HTTP 503 instead of rejecting the
+service worker's fetch promise. Nothing is deployed or uploaded by these commands.
 
 ## Observed validation (2026-11-11)
 

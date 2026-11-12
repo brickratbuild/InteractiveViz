@@ -6,6 +6,7 @@
   <title>Building Walkthrough</title>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#B8CEDD">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="apple-touch-icon" href="images/logo_round.png">
@@ -473,7 +474,17 @@
   <!-- PWA: register service worker -->
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js').catch(() => {});
+      // A replacement worker invalidates the previous app shell. Reload once
+      // when upgrading an existing installation, never on first installation.
+      const hadController = !!navigator.serviceWorker.controller;
+      let reloading = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (hadController && !reloading) {
+          reloading = true;
+          window.location.reload();
+        }
+      });
+      navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).catch(() => {});
     }
   </script>
 
