@@ -244,7 +244,8 @@
     #btnFullscreen .fs-compress { display: none; }
 
     /* ── Ghost-mode button ──────────────────────────────────────── */
-    #btnGhost {
+    #btnGhost,
+    #btnHome {
       position: fixed;
       top: 68px;
       right: 16px;
@@ -265,7 +266,8 @@
       touch-action: manipulation;
     }
 
-    #btnGhost svg {
+    #btnGhost svg,
+    #btnHome svg {
       width: 22px;
       height: 22px;
       stroke: #fff;
@@ -277,6 +279,21 @@
 
     #btnGhost.ghost-active {
       background: rgba(255, 165, 0, 0.55);
+    }
+
+    #btnHome {
+      top: 120px;
+      z-index: 9999; /* Stay clickable above the prompt after pressing Esc. */
+    }
+
+    #btnHome:hover,
+    #btnHome:active {
+      background: rgba(0, 0, 0, 0.6);
+    }
+
+    #btnHome:focus-visible {
+      outline: 2px solid #fff;
+      outline-offset: 3px;
     }
 
     /* ── Zone hints (mobile touch feedback) ────────────────────── */
@@ -366,7 +383,7 @@
       color: rgba(255, 255, 255, 0.9);
     }
   </style>
-  <script type="module" crossorigin src="/assets/index-DoQk4g0j.js"></script>
+  <script type="module" crossorigin src="/assets/index-gPKRgK6O.js"></script>
 </head>
 <body>
 
@@ -397,6 +414,7 @@
         &nbsp;&nbsp;|&nbsp;&nbsp;
         <kbd>Esc</kbd> &nbsp;Release cursor
       </p>
+      <p class="desktop-only"><kbd>Home</kbd> &nbsp;Return to start, or press Esc and click the home icon</p>
 
       <!-- Mobile instructions -->
       <p class="mobile-only">Tap anywhere to start the walkthrough</p>
@@ -404,6 +422,7 @@
       <p class="mobile-only" style="color:rgba(255,255,255,0.75);font-size:14px;line-height:1.7;">
         Left side &nbsp;&#8594;&nbsp; Move &nbsp;&nbsp;|&nbsp;&nbsp; Right side &nbsp;&#8594;&nbsp; Look
       </p>
+      <p class="mobile-only">Tap the home icon to return to the start</p>
     </div>
   </div>
 
@@ -411,7 +430,7 @@
   <div id="crosshair"></div>
 
   <!-- Esc hint -->
-  <div id="escHint">Press Esc to release cursor</div>
+  <div id="escHint">Press Esc to release cursor &middot; Home to return to start</div>
 
   <!-- Zone hints (mobile touch feedback — faded in/out by MobileControls.js) -->
   <div id="zone-hint-left"><span class="zone-hint-label">Move</span></div>
@@ -453,6 +472,15 @@
     </svg>
   </button>
 
+  <!-- Return to the original walkthrough view (shown after model loads) -->
+  <button id="btnHome" type="button" title="Return to start (Home key)" aria-label="Return to starting position" aria-keyshortcuts="Home">
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M3 10l9-7 9 7"/>
+      <path d="M5 9v12h14V9"/>
+      <path d="M9 21v-8h6v8"/>
+    </svg>
+  </button>
+
   <!-- Portrait-mode rotate prompt (mobile only) -->
   <div id="rotatePrompt">
     <!-- Phone with curved rotation arrow -->
@@ -469,7 +497,7 @@
     </svg>
     <p>Turn on Auto-rotate, then rotate your phone.</p>
   </div>
-
+
 
   <!-- PWA: register service worker -->
   <script>

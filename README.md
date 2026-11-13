@@ -43,6 +43,10 @@ location and direction. Coordinates are metres at **feet height**; `yaw` and
 current walkthrough position. Shareefa's local test is available at
 `http://127.0.0.1:5173/shareefa` and uses the reference viewer's living-room start.
 
+Use the home icon below the wall-pass button to return to the model's starting
+position and viewing direction. On desktop, press **Home** while exploring, or
+press **Esc** to release the cursor and click the icon. On mobile, tap the icon.
+
 ## Push changes
 
 ```bash

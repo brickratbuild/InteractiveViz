@@ -138,6 +138,17 @@ export class FirstPersonController {
     this.yaw = yaw;
   }
 
+  /** Restore an eye-level position and look direction without retaining movement. */
+  resetView({ position, yaw, pitch }) {
+    this.camera.position.copy(position);
+    this.lastGroundY = position.y - EYE_HEIGHT;
+    this.yaw = yaw;
+    this.pitch = pitch;
+    this.keyState = {};
+    this._mobile?.reset();
+    this._applyRotation();
+  }
+
   /**
    * Activate mobile input mode. Pass a MobileControls instance.
    * After this call the controller reads joystick + touch-look instead of

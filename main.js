@@ -22,6 +22,7 @@ const quality = selectQuality({ coarse: matchMedia('(pointer: coarse)').matches,
 let renderPipeline = null;
 let modelRoot = null;
 let modelReady = false;
+let startView = null;
 let runtimeFailed = false;
 let animationFrame = null;
 const loadTimings = {};
@@ -127,6 +128,7 @@ const fpController = new FirstPersonController(camera, renderer.domElement, { is
 const loadingOverlay = document.getElementById('loadingOverlay');
 const clickPrompt = document.getElementById('clickPrompt');
 const btnGhost = document.getElementById('btnGhost');
+const btnHome = document.getElementById('btnHome');
 const fpsCounter = document.getElementById('fpsCounter');
 const progressText = document.getElementById('progressText');
 const progressDetail = document.getElementById('progressDetail');
@@ -167,6 +169,7 @@ function showReadyScreen() {
     if (loadingOverlay) loadingOverlay.style.display = 'none';
     if (clickPrompt) clickPrompt.style.display = 'flex';
     if (btnGhost) btnGhost.style.display = 'flex';
+    if (btnHome) btnHome.style.display = 'flex';
     if (fpsCounter) fpsCounter.style.display = 'block';
   }, 400);
 }
@@ -189,8 +192,26 @@ if (btnGhost) {
   btnGhost.addEventListener('click', activateGhostMode);
 }
 
-// Space Bar triggers ghost mode while pointer is locked (desktop shortcut)
+function returnToStart() {
+  if (!modelReady || !startView) return;
+  clearTimeout(ghostTimer);
+  ghostTimer = null;
+  fpController.wallCollisionEnabled = true;
+  btnGhost?.classList.remove('ghost-active');
+  fpController.resetView(startView);
+}
+
+btnHome?.addEventListener('click', event => {
+  event.stopPropagation(); // Keep the cursor available when returning from the pause screen.
+  returnToStart();
+});
+
+// Desktop shortcuts remain available while the cursor is locked for navigation.
 window.addEventListener('keydown', e => {
+  if (e.code === 'Home' && fpController.isLocked && modelReady) {
+    e.preventDefault();
+    if (!e.repeat) returnToStart();
+  }
   if (e.code === 'Space' && fpController.isLocked) {
     e.preventDefault(); // prevent page scroll
     activateGhostMode();
@@ -259,6 +280,7 @@ function showModelError(error) {
   document.exitPointerLock?.();
   if (clickPrompt) clickPrompt.style.display = 'none';
   if (btnGhost) btnGhost.style.display = 'none';
+  if (btnHome) btnHome.style.display = 'none';
   if (loadingOverlay) loadingOverlay.style.display = 'flex';
   if (progressRing) progressRing.classList.remove('is-indeterminate');
   const unsupported = /unsupported|HDR framebuffer/.test(error.message);
@@ -301,15 +323,9 @@ loader.load(
 
     // --- Developer-configured start (automatic search only for older records) ---
     const spawnStartedAt = performance.now();
-    const start = getStartView(gltf.scene, modelConfig.startPosition, EYE_HEIGHT);
+    startView = getStartView(gltf.scene, modelConfig.startPosition, EYE_HEIGHT);
     logLoadTiming(modelConfig.startPosition ? 'configured starting position' : 'start-position scan', spawnStartedAt);
-    camera.position.copy(start.position);
-
-    // Tell the controller where the floor is from the very first frame
-    fpController.setGroundY(start.position.y - EYE_HEIGHT);
-    fpController.setYaw(start.yaw);
-    fpController.pitch = start.pitch;
-    fpController.update(0); // apply the configured direction to the first rendered frame
+    fpController.resetView(startView);
 
     // Register scene meshes for floor raycasting
     setLoadingStatus('Preparing model...', 'Building walkthrough collision data');

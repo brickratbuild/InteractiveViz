@@ -69,6 +69,22 @@ export class MobileControls {
     return TOUCH_LOOK_SENS;
   }
 
+  /** Release active gestures so returning home cannot continue an old drag. */
+  reset() {
+    this._joyId = null;
+    this._lookId = null;
+    this._moveInput.x = 0;
+    this._moveInput.z = 0;
+    this._lookDelta.dx = 0;
+    this._lookDelta.dy = 0;
+    this._hideBase();
+    this._setKnob(0, 0);
+    clearTimeout(this._hintHideTimer);
+    this._hintHideTimer = null;
+    if (this._hintLeft) this._hintLeft.style.opacity = '0';
+    if (this._hintRight) this._hintRight.style.opacity = '0';
+  }
+
   // ------------------------------------------------------------------
   //  Touch event binding
   // ------------------------------------------------------------------
